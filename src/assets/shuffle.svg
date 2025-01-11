@@ -1,0 +1,32 @@
+<svg width="20"
+     height="20"
+     version="1.1"
+     viewBox="0 0 7.4083 7.4083"
+     xmlns="http://www.w3.org/2000/svg">
+  <g fill="#020000">
+    <g transform="translate(-.044718 .51461)">
+      <rect transform="matrix(-.78447 .62017 -.64278 -.76605 0 0)"
+            x="-4.2139"
+            y="-5.2121"
+            width="7.772"
+            height=".77092"
+            opacity=".9868"
+            stroke-width=".28594" />
+      <path transform="rotate(25.605 5.4331 1.7591)"
+            d="m6.7823 1.2074-1.6491-0.68757 1.42-1.0844 0.11454 0.88597z"
+            opacity=".9868"
+            stroke-width=".26458" />
+    </g>
+    <rect transform="matrix(.74741 .66437 -.66705 .74502 0 0)"
+          x=".67855"
+          y="-.025902"
+          width="8.0924"
+          height=".80722"
+          opacity=".9868"
+          stroke-width=".29856" />
+    <path transform="rotate(110.11 4.2655 3.5063)"
+          d="m6.7823 1.2074-1.6491-0.68757 1.42-1.0844 0.11454 0.88597z"
+          opacity=".9868"
+          stroke-width=".26458" />
+  </g>
+</svg>
