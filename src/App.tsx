@@ -46,130 +46,95 @@ const App: React.FC = () => {
     loadSongs();
   }, []);
 
-  // Handle audio loading errors
+  // Initialize audio element
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    if (!audioRef.current || !nowPlaying) return;
 
-    const handleError = (e: ErrorEvent) => {
-      console.error("Audio error:", e);
-      setError("Error playing audio. Please try another track.");
-      setIsPlaying(false);
+    const audio = audioRef.current;
+    
+    // Reset audio element state
+    audio.currentTime = 0;
+    audio.src = nowPlaying.audio;
+    
+    // Preload audio
+    audio.load();
+
+    // Handle audio events
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      setError(null);
+      if (isPlaying) {
+        audio.play().catch(err => {
+          console.error("Error auto-playing:", err);
+          setIsPlaying(false);
+        });
+      }
     };
 
-    audio.addEventListener("error", handleError);
-    return () => audio.removeEventListener("error", handleError);
-  }, []);
+    const handleError = () => {
+      setError("Error playing audio. Please try another track.");
+      setIsPlaying(false);
+      setIsLoading(false);
+    };
 
-  const handleMetaData = (event: React.SyntheticEvent<HTMLAudioElement, Event>) => {
-    setSongInfo({
-      duration: event.currentTarget.duration || 0,
-      currentTime: event.currentTarget.currentTime,
-    });
-  };
+    const handleEnded = () => {
+      handleNextSong(null);
+    };
 
-const handleNextSong = async (_: any, selectedId?: string) => {
-  if (!songs.length) return;
-
-  try {
-    // Immediately set loading state
-    setIsLoading(true);
-    
-    // First, stop current playback
-    if (audioRef.current) {
-      await audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
-
-    let songId = selectedId ? selectedId : nowPlaying?.id;
-    let id = songs.findIndex((song) => song.id === songId);
-
-    let nextSong: Song;
-    if (selectedId) {
-      nextSong = songs[id];
-    } else if (shuffle && !selectedId) {
-      nextSong = songs[getRandomNumber(songs.length)];
-    } else {
-      nextSong = songs[(id + 1) % songs.length];
-    }
-
-    // Update state before attempting to play
-    setNowPlaying(nextSong);
-    
-    if (audioRef.current) {
-      // Reset audio element
-      audioRef.current.src = nextSong.audio;
-      
-      // Wait for audio to be loaded
-      await new Promise((resolve) => {
-        if (audioRef.current) {
-          audioRef.current.oncanplaythrough = resolve;
-          audioRef.current.load();
-        }
+    const handleTimeUpdate = () => {
+      setSongInfo({
+        currentTime: audio.currentTime,
+        duration: audio.duration || 0
       });
+    };
 
-      // Only attempt to play if still supposed to be playing
-      if (isPlaying || selectedId) {
-        try {
-          await audioRef.current.play();
-          setIsPlaying(true);
-        } catch (err) {
-          console.error("Error playing audio:", err);
-          setError("Failed to play audio. Please try again.");
-          setIsPlaying(false);
-        }
+    // Add event listeners
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("error", handleError);
+    audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("timeupdate", handleTimeUpdate);
+
+    // Cleanup
+    return () => {
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("error", handleError);
+      audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
+    };
+  }, [nowPlaying]);
+
+  const handleNextSong = async (event: any, selectedId?: string) => {
+    if (!songs.length) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Stop current playback
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
+
+      let nextSong: Song;
+      if (selectedId) {
+        nextSong = songs.find(song => song.id === selectedId) || songs[0];
+      } else if (shuffle) {
+        nextSong = songs[getRandomNumber(songs.length)];
+      } else {
+        const currentIndex = songs.findIndex(song => song.id === nowPlaying?.id);
+        nextSong = songs[(currentIndex + 1) % songs.length];
+      }
+
+      setNowPlaying(nextSong);
+      setError(null);
+      
+    } catch (err) {
+      console.error("Error changing song:", err);
+      setError("Failed to change song. Please try again.");
+      setIsPlaying(false);
     }
-  } catch (err) {
-    console.error("Error changing song:", err);
-    setError("Failed to change song. Please try again.");
-    setIsPlaying(false);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-useEffect(() => {
-  const audio = audioRef.current;
-  if (!audio) return;
-
-  const handleCanPlay = () => {
-    setIsLoading(false);
-    setError(null);
   };
 
-  const handleError = (e: Event) => {
-    console.error("Audio error:", e);
-    setError("Error playing audio. Please try another track.");
-    setIsPlaying(false);
-    setIsLoading(false);
-  };
-
-  const handleWaiting = () => {
-    setIsLoading(true);
-  };
-
-  const handlePlaying = () => {
-    setIsLoading(false);
-  };
-
-  // Add all event listeners
-  audio.addEventListener("canplay", handleCanPlay);
-  audio.addEventListener("error", handleError);
-  audio.addEventListener("waiting", handleWaiting);
-  audio.addEventListener("playing", handlePlaying);
-
-  // Cleanup
-  return () => {
-    audio.removeEventListener("canplay", handleCanPlay);
-    audio.removeEventListener("error", handleError);
-    audio.removeEventListener("waiting", handleWaiting);
-    audio.removeEventListener("playing", handlePlaying);
-  };
-}, []);
-  
-
-  if (isLoading) {
+  if (isLoading && !nowPlaying) {
     return <div className="loading">Loading songs...</div>;
   }
 
@@ -205,13 +170,9 @@ useEffect(() => {
             <section className="player">
               {nowPlaying && (
                 <audio
-                  src={nowPlaying.audio}
                   ref={audioRef}
-                  onLoadedMetadata={handleMetaData}
-                  onTimeUpdate={handleMetaData}
-                  onEnded={() => handleNextSong(null)}
                   preload="auto"
-                ></audio>
+                />
               )}
 
               {nowPlaying && (
