@@ -68,48 +68,106 @@ const App: React.FC = () => {
     });
   };
 
-  const handleNextSong = async (_: any, selectedId?: string) => {
-    if (!songs.length) return;
+const handleNextSong = async (_: any, selectedId?: string) => {
+  if (!songs.length) return;
 
-    try {
-      // Pause current playback before switching
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+  try {
+    // Immediately set loading state
+    setIsLoading(true);
+    
+    // First, stop current playback
+    if (audioRef.current) {
+      await audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
 
-      let songId = selectedId ? selectedId : nowPlaying?.id;
-      let id = songs.findIndex((song) => song.id === songId);
+    let songId = selectedId ? selectedId : nowPlaying?.id;
+    let id = songs.findIndex((song) => song.id === songId);
 
-      let nextSong: Song;
-      if (selectedId) {
-        nextSong = songs[id];
-      } else if (shuffle && !selectedId) {
-        nextSong = songs[getRandomNumber(songs.length)];
-      } else {
-        nextSong = songs[(id + 1) % songs.length];
-      }
+    let nextSong: Song;
+    if (selectedId) {
+      nextSong = songs[id];
+    } else if (shuffle && !selectedId) {
+      nextSong = songs[getRandomNumber(songs.length)];
+    } else {
+      nextSong = songs[(id + 1) % songs.length];
+    }
 
-      setNowPlaying(nextSong);
+    // Update state before attempting to play
+    setNowPlaying(nextSong);
+    
+    if (audioRef.current) {
+      // Reset audio element
+      audioRef.current.src = nextSong.audio;
+      
+      // Wait for audio to be loaded
+      await new Promise((resolve) => {
+        if (audioRef.current) {
+          audioRef.current.oncanplaythrough = resolve;
+          audioRef.current.load();
+        }
+      });
 
-      // Wait for the audio element to be properly loaded before playing
-      if (audioRef.current) {
-        audioRef.current.load();
-        if (isPlaying || selectedId) {
-          try {
-            await audioRef.current.play();
-            setIsPlaying(true);
-          } catch (err) {
-            console.error("Error playing audio:", err);
-            setError("Failed to play audio. Please try again.");
-            setIsPlaying(false);
-          }
+      // Only attempt to play if still supposed to be playing
+      if (isPlaying || selectedId) {
+        try {
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (err) {
+          console.error("Error playing audio:", err);
+          setError("Failed to play audio. Please try again.");
+          setIsPlaying(false);
         }
       }
-    } catch (err) {
-      console.error("Error changing song:", err);
-      setError("Failed to change song. Please try again.");
     }
+  } catch (err) {
+    console.error("Error changing song:", err);
+    setError("Failed to change song. Please try again.");
+    setIsPlaying(false);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+useEffect(() => {
+  const audio = audioRef.current;
+  if (!audio) return;
+
+  const handleCanPlay = () => {
+    setIsLoading(false);
+    setError(null);
   };
+
+  const handleError = (e: Event) => {
+    console.error("Audio error:", e);
+    setError("Error playing audio. Please try another track.");
+    setIsPlaying(false);
+    setIsLoading(false);
+  };
+
+  const handleWaiting = () => {
+    setIsLoading(true);
+  };
+
+  const handlePlaying = () => {
+    setIsLoading(false);
+  };
+
+  // Add all event listeners
+  audio.addEventListener("canplay", handleCanPlay);
+  audio.addEventListener("error", handleError);
+  audio.addEventListener("waiting", handleWaiting);
+  audio.addEventListener("playing", handlePlaying);
+
+  // Cleanup
+  return () => {
+    audio.removeEventListener("canplay", handleCanPlay);
+    audio.removeEventListener("error", handleError);
+    audio.removeEventListener("waiting", handleWaiting);
+    audio.removeEventListener("playing", handlePlaying);
+  };
+}, []);
+  
 
   if (isLoading) {
     return <div className="loading">Loading songs...</div>;

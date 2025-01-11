@@ -44,14 +44,24 @@ export const Player: React.FC<PlayerProps> = ({
 
   const handlePlayPause = async () => {
     try {
+      if (!audioRef.current) return;
+  
       if (!isPlaying) {
-        const playPromise = audioRef.current?.play();
-        if (playPromise) {
+        // Make sure audio is loaded before playing
+        await new Promise((resolve) => {
+          if (audioRef.current) {
+            audioRef.current.oncanplaythrough = resolve;
+            audioRef.current.load();
+          }
+        });
+  
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
           await playPromise;
           setIsPlaying(true);
         }
       } else {
-        audioRef.current?.pause();
+        await audioRef.current.pause();
         setIsPlaying(false);
       }
     } catch (error) {
@@ -90,6 +100,8 @@ export const Player: React.FC<PlayerProps> = ({
   };
 
   const { currentTime, duration } = songInfo;
+
+  
 
   return (
     <>

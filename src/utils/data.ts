@@ -1,8 +1,7 @@
-// data.ts
+// utils/data.ts
 import { v4 as uuidv4 } from "uuid";
 import { Song } from "../types";
 
-// Updated FALLBACK_SONGS with reliable audio sources
 const FALLBACK_SONGS: Song[] = [
   {
     id: uuidv4(),
@@ -22,50 +21,42 @@ const FALLBACK_SONGS: Song[] = [
   }
 ];
 
-interface DeezerTrack {
-  title: string;
-  preview: string;
-  artist?: {
-    name: string;
-  };
-  album?: {
-    title: string;
-    cover_medium: string;
-  };
-}
-
-interface DeezerResponse {
-  data: DeezerTrack[];
-}
-
 export async function fetchTracks(): Promise<Song[]> {
   try {
     const response = await fetch('/api/deezer/search?q=chillhop&limit=6');
     
-    if (!response.ok) {
-      console.warn(`Falling back to local tracks due to API error: ${response.status}`);
+    // Check if response is ok and content type is JSON
+    const contentType = response.headers.get('content-type');
+    if (!response.ok || !contentType?.includes('application/json')) {
+      console.warn('Invalid API response, using fallback tracks');
       return FALLBACK_SONGS;
     }
 
-    const data = await response.json() as DeezerResponse;
-
+    const data = await response.json();
+    
     if (!data?.data?.length) {
-      console.warn('No tracks received from API, using fallback');
+      console.warn('No tracks in API response, using fallback');
       return FALLBACK_SONGS;
     }
 
-    const songs: Song[] = data.data.map((track: DeezerTrack) => ({
+    const songs: Song[] = data.data.map((track: any) => ({
       id: uuidv4(),
       name: track.title || 'Unknown Track',
       cover: track.album?.cover_medium || 'https://picsum.photos/200',
       artist: track.artist?.name || 'Unknown Artist',
-      audio: track.preview,
+      audio: track.preview || '',
       alt: `Album cover for '${track.album?.title || 'Unknown Album'}' by ${track.artist?.name || 'Unknown Artist'}`
     }));
 
-    // Validate that all songs have valid audio URLs
-    const validSongs = songs.filter((song: Song) => song.audio && typeof song.audio === 'string');
-    
+    // Validate songs have required fields
+    const validSongs = songs.filter(song => 
+      song.audio && 
+      typeof song.audio === 'string' &&
+      song.name &&
+      song.cover &&
+      song.artist
+    );
+
     return validSongs.length > 0 ? validSongs : FALLBACK_SONGS;
   } catch (error) {
     console.error("Error fetching tracks:", error);
