@@ -22,7 +22,7 @@
     "react-scripts": "5.0.1",
     "redux": "^5.0.0",
     "uuid": "^9.0.0",
-    "proxy": "https://api.deezer.com",
+   
     "web-vitals": "^3.0.0"
   },
   "scripts": {
