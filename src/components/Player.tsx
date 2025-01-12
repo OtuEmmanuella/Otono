@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Song } from "../types";
 import { getRandomNumber, getPercentage, getSeconds } from "../utils";
 
@@ -40,8 +40,6 @@ export const Player: React.FC<PlayerProps> = ({
   shuffle,
   songs,
 }) => {
-  const [error, setError] = useState<string | null>(null);
-
   const handlePlayPause = async () => {
     try {
       if (!audioRef.current) return;
@@ -66,7 +64,6 @@ export const Player: React.FC<PlayerProps> = ({
       }
     } catch (error) {
       console.error("Error playing audio:", error);
-      setError("Unable to play this track. Please try another.");
       setIsPlaying(false);
     }
   };
@@ -100,8 +97,6 @@ export const Player: React.FC<PlayerProps> = ({
   };
 
   const { currentTime, duration } = songInfo;
-
-  
 
   return (
     <>

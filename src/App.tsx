@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Player } from "./components/Player";
 import { fetchTracks, getRandomNumber } from "./utils";
 import { ReactComponent as Library } from "./assets/songs.svg";
@@ -20,6 +20,37 @@ const App: React.FC = () => {
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const trackRef = useRef<HTMLElement>(null);
+
+  const handleNextSong = useCallback((event: any, selectedId?: string) => {
+    if (!songs.length) return;
+
+    try {
+      setIsLoading(true);
+      
+      // Stop current playback
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      let nextSong: Song;
+      if (selectedId) {
+        nextSong = songs.find(song => song.id === selectedId) || songs[0];
+      } else if (shuffle) {
+        nextSong = songs[getRandomNumber(songs.length)];
+      } else {
+        const currentIndex = songs.findIndex(song => song.id === nowPlaying?.id);
+        nextSong = songs[(currentIndex + 1) % songs.length];
+      }
+
+      setNowPlaying(nextSong);
+      setError(null);
+      
+    } catch (err) {
+      console.error("Error changing song:", err);
+      setError("Failed to change song. Please try again.");
+      setIsPlaying(false);
+    }
+  }, [songs, shuffle, nowPlaying]);
 
   // Load songs on component mount
   useEffect(() => {
@@ -101,38 +132,7 @@ const App: React.FC = () => {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
     };
-  }, [nowPlaying]);
-
-  const handleNextSong = async (event: any, selectedId?: string) => {
-    if (!songs.length) return;
-
-    try {
-      setIsLoading(true);
-      
-      // Stop current playback
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-
-      let nextSong: Song;
-      if (selectedId) {
-        nextSong = songs.find(song => song.id === selectedId) || songs[0];
-      } else if (shuffle) {
-        nextSong = songs[getRandomNumber(songs.length)];
-      } else {
-        const currentIndex = songs.findIndex(song => song.id === nowPlaying?.id);
-        nextSong = songs[(currentIndex + 1) % songs.length];
-      }
-
-      setNowPlaying(nextSong);
-      setError(null);
-      
-    } catch (err) {
-      console.error("Error changing song:", err);
-      setError("Failed to change song. Please try again.");
-      setIsPlaying(false);
-    }
-  };
+  }, [nowPlaying, isPlaying, handleNextSong]);
 
   if (isLoading && !nowPlaying) {
     return <div className="loading">Loading songs...</div>;
