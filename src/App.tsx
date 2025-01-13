@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Player } from "./components/Player";
-import { fetchTracks, getRandomNumber } from "./utils";
+import { deezerService } from "./services/deezerService";
+import { getRandomNumber } from "./utils";
 import { ReactComponent as Library } from "./assets/songs.svg";
 import { ToggleButton } from "./components/ToggleButton";
 import { Song } from "./types";
@@ -11,6 +12,7 @@ const App: React.FC = () => {
   const [shuffle, setShuffle] = useState(false);
   const [songs, setSongs] = useState<Song[]>([]);
   const [nowPlaying, setNowPlaying] = useState<Song | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [songInfo, setSongInfo] = useState({
     currentTime: 0,
     duration: 0,
@@ -21,13 +23,52 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const trackRef = useRef<HTMLElement>(null);
 
+  const handleSearch = async (query: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const searchResults = await deezerService.searchTracks(query);
+      setSongs(searchResults);
+      
+      // If we have results and no current song is playing, set the first result as nowPlaying
+      if (searchResults.length > 0 && !nowPlaying) {
+        setNowPlaying(searchResults[0]);
+      }
+    } catch (err) {
+      console.error("Error searching songs:", err);
+      setError("Failed to search songs. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounce search to avoid too many API calls
+  const debounceSearch = useCallback(
+    (function () {
+      let timeoutId: NodeJS.Timeout;
+      return (query: string) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => handleSearch(query), 500);
+      };
+    })(),
+    []
+  );
+
+  // Handle search input change
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    if (query.trim()) {
+      debounceSearch(query);
+    }
+  };
+
   const handleNextSong = useCallback((event: any, selectedId?: string) => {
     if (!songs.length) return;
 
     try {
       setIsLoading(true);
       
-      // Stop current playback
       if (audioRef.current) {
         audioRef.current.pause();
       }
@@ -52,45 +93,21 @@ const App: React.FC = () => {
     }
   }, [songs, shuffle, nowPlaying]);
 
-  // Load songs on component mount
+  // Load initial songs
   useEffect(() => {
-    const loadSongs = async () => {
-      try {
-        setIsLoading(true);
-        const fetchedSongs = await fetchTracks();
-        
-        if (fetchedSongs.length === 0) {
-          throw new Error("No songs available");
-        }
-
-        setSongs(fetchedSongs);
-        setNowPlaying(fetchedSongs[0]);
-        setError(null);
-      } catch (err) {
-        console.error("Error loading songs:", err);
-        setError("Failed to load songs. Please try again later.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    loadSongs();
+    handleSearch("peaceful inspiration"); // Initial search
   }, []);
 
-  // Initialize audio element
+  // Audio element setup and event handlers
   useEffect(() => {
     if (!audioRef.current || !nowPlaying) return;
 
     const audio = audioRef.current;
     
-    // Reset audio element state
     audio.currentTime = 0;
     audio.src = nowPlaying.audio;
-    
-    // Preload audio
     audio.load();
 
-    // Handle audio events
     const handleCanPlay = () => {
       setIsLoading(false);
       setError(null);
@@ -119,13 +136,11 @@ const App: React.FC = () => {
       });
     };
 
-    // Add event listeners
     audio.addEventListener("canplay", handleCanPlay);
     audio.addEventListener("error", handleError);
     audio.addEventListener("ended", handleEnded);
     audio.addEventListener("timeupdate", handleTimeUpdate);
 
-    // Cleanup
     return () => {
       audio.removeEventListener("canplay", handleCanPlay);
       audio.removeEventListener("error", handleError);
@@ -142,6 +157,15 @@ const App: React.FC = () => {
     <>
       <header>
         <h1>Otonó</h1>
+        <div className="search-container">
+          <input
+            type="search"
+            placeholder="Search for songs..."
+            value={searchQuery}
+            onChange={handleSearchChange}
+            className="search-input"
+          />
+        </div>
         <nav>
           <ToggleButton />
           <button

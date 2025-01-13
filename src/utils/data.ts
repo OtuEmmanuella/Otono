@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { Song } from "../types";
+import { deezerService } from "../services/deezerService";
 
 const FALLBACK_SONGS: Song[] = [
  
@@ -49,41 +50,12 @@ const FALLBACK_SONGS: Song[] = [
 
 export async function fetchTracks(): Promise<Song[]> {
   try {
-    const response = await fetch('/api/deezer/search?q=love+inspiration+peaceful&limit=10');
-    
-    const contentType = response.headers.get('content-type');
-    if (!response.ok || !contentType?.includes('application/json')) {
-      console.warn('Invalid API response, using fallback tracks');
-      return FALLBACK_SONGS;
-    }
-
-    const data = await response.json();
-    
-    if (!data?.data?.length) {
-      console.warn('No tracks in API response, using fallback');
-      return FALLBACK_SONGS;
-    }
-
-    const songs: Song[] = data.data.map((track: any) => ({
-      id: uuidv4(),
-      name: track.title || 'Unknown Track',
-      cover: track.album?.cover_medium || 'https://picsum.photos/200',
-      artist: track.artist?.name || 'Unknown Artist',
-      audio: track.preview || '',
-      alt: `Album cover for '${track.album?.title || 'Unknown Album'}' by ${track.artist?.name || 'Unknown Artist'}`
-    }));
-
-    const validSongs = songs.filter(song => 
-      song.audio && 
-      typeof song.audio === 'string' &&
-      song.name &&
-      song.cover &&
-      song.artist
-    );
-
-    return validSongs.length > 0 ? validSongs : FALLBACK_SONGS;
+    // You can customize the search query based on your needs
+    const songs = await deezerService.searchTracks('peaceful inspiration relaxing', 10);
+    return songs.length > 0 ? songs : FALLBACK_SONGS;
   } catch (error) {
     console.error("Error fetching tracks:", error);
     return FALLBACK_SONGS;
   }
 }
+

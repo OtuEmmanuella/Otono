@@ -285,3 +285,47 @@ nav > * + * {
 [data-showtracks="true"] ul {
   transform: translateX(0);
 }
+.search-container {
+  display: flex;
+  align-items: center;
+  margin: 0 1rem;
+  flex: 1;
+}
+
+.search-input {
+  width: 100%;
+  max-width: 400px;
+  padding: 0.5rem 1rem;
+  border: 2px solid var(--theme-color);
+  border-radius: 20px;
+  background-color: var(--theme-bg);
+  color: var(--theme-color);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  box-shadow: 0 0 5px var(--theme-color);
+}
+
+.search-input::placeholder {
+  color: var(--theme-color);
+  opacity: 0.7;
+}
+
+@media (max-width: 768px) {
+  header {
+    flex-wrap: wrap;
+  }
+  
+  .search-container {
+    order: 3;
+    width: 100%;
+    margin: 1rem 0;
+  }
+  
+  .search-input {
+    max-width: 100%;
+  }
+}
