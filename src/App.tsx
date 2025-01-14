@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const trackRef = useRef<HTMLElement>(null);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = useCallback(async (query: string) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -40,28 +40,24 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [nowPlaying]); // Added nowPlaying as dependency since it's used in the callback
 
-  // Debounce search to avoid too many API calls
-  const debounceSearch = useCallback(
-    (function () {
-      let timeoutId: NodeJS.Timeout;
-      return (query: string) => {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => handleSearch(query), 500);
-      };
-    })(),
-    []
-  );
+  // Debounced search function
+  const debounceSearch = useCallback((query: string) => {
+    let timeoutId: NodeJS.Timeout;
+    return () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => handleSearch(query), 500);
+    };
+  }, [handleSearch]);
 
-  // Handle search input change
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
     if (query.trim()) {
-      debounceSearch(query);
+      debounceSearch(query)();
     }
-  };
+  }, [debounceSearch]);
 
   const handleNextSong = useCallback((event: any, selectedId?: string) => {
     if (!songs.length) return;
@@ -95,8 +91,8 @@ const App: React.FC = () => {
 
   // Load initial songs
   useEffect(() => {
-    handleSearch("peaceful inspiration"); // Initial search
-  }, []);
+    handleSearch("peaceful inspiration");
+  }, [handleSearch]); // Added handleSearch as dependency
 
   // Audio element setup and event handlers
   useEffect(() => {
@@ -147,7 +143,7 @@ const App: React.FC = () => {
       audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
     };
-  }, [nowPlaying, isPlaying, handleNextSong]);
+  }, [nowPlaying, isPlaying, handleNextSong]); // Added all required dependencies
 
   if (isLoading && !nowPlaying) {
     return <div className="loading">Loading songs...</div>;
